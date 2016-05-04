@@ -75,8 +75,8 @@
   
     <article id="post-django自定义storage" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
-    <a href="/2016/05/03/django自定义storage/" class="article-date">
-  <time datetime="2016-05-03T06:07:30.000Z" itemprop="datePublished">2016-05-03</time>
+    <a href="/2016/05/04/django自定义storage/" class="article-date">
+  <time datetime="2016-05-04T01:00:48.000Z" itemprop="datePublished">2016-05-04</time>
 </a>
     
   <div class="article-category">
@@ -91,7 +91,7 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2016/05/03/django自定义storage/">django自定义storage</a>
+      <a class="article-title" href="/2016/05/04/django自定义storage/">django自定义storage</a>
     </h1>
   
 
@@ -99,37 +99,21 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>最近遇到了这样的一个问题，由于某些原因，需要把静态文件放到cdn上，之前使用的是django默认的storage（FileSystemStorage）。于是这里需要自定义storage。<br>第一次写storage，过程中遇到一些坑，记录下来。</p>
-<h2 id="什么是storage"><a href="#什么是storage" class="headerlink" title="什么是storage"></a>什么是storage</h2><p>其实这个玩意要我说明白，好像有点难，于是我就按我的方法说，如果有错，谢谢指正！<br>首先，我们的web中使用了许多的模版文件，静态文件，如js,css，图片这些，我们在配置服务器的时候，让nginx对请求进行分发，将动态请求分发给uWSGI，将静态文件交由nginx处理，这里nginx将从文件系统中读取静态资源，这里的文件系统就是我们当前的storage。<br>但是这里我们是想用cdn，于是我们这里的静态资源不在从服务器上加载，而是从我们的cdn服务提供商那里加载，这里我们又有一个问题了，cdn服务提供商怎么给出正确的资源，于是我们就需要自己来写一个storage，将原来的文件系统更换为cdn提供商的空间。</p>
-<h2 id="storage的结构和重写"><a href="#storage的结构和重写" class="headerlink" title="storage的结构和重写"></a>storage的结构和重写</h2><p>这里就需要参考django的官方文档了(<a href="https://docs.djangoproject.com/en/1.9/howto/custom-file-storage/" target="_blank" rel="external">原版</a>,<a href="http://python.usyiyi.cn/django/howto/custom-file-storage.html" target="_blank" rel="external">翻译版</a>)，由于我的外语水平不是很好，做的时候为了图效率，就没有花时间去琢磨英文官方文档，所以这里给一个翻译的文档地址，当然，如果你能很快看明白官方的文档，那去读原版是更好的选择。<br>首先，我们看文件系统的基类，其源码位于<code>django/core/files/storage.py</code>文件下。这里我就不贴它的代码了，如果需要查看结构，请自行到该文件下查看！<br>从文档中，我们可以了解的一些东西，这个类的子类需要不带参数实例化，于是我们需要在settings中加入自定义的参数。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">STATICFILES_STORAGE = <span class="string">'project.storage.CustomStorage'</span></span><br><span class="line">CUSTOM_STORAGE_OPTIONS = &#123;</span><br><span class="line">    <span class="string">'AccessKeyId'</span>: <span class="string">'your_accesskeyid'</span>,</span><br><span class="line">    <span class="string">'AccessKeySecret'</span>: <span class="string">'your_accesskeyidsecret'</span>,</span><br><span class="line">    <span class="string">'endpoint'</span>: <span class="string">'oss-cn-hangzhou.aliyuncs.com'</span>,</span><br><span class="line">    <span class="string">'oss_url'</span>: <span class="string">'http://oss-cn-hangzhou.aliyuncs.com'</span>,</span><br><span class="line">    <span class="string">'bucketname'</span>: <span class="string">'your_bucketname'</span>,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">COMPRESS_STORAGE = <span class="string">'project.storage.CustomCompressorFileStorage'</span></span><br><span class="line">STATIC_URL = <span class="string">'your_cdn_prefix_address'</span></span><br></pre></td></tr></table></figure></p>
-<p>参数说明：</p>
-<ul>
-<li>这里我们指定了STATICFILES_STORAGE为我们自定义的CustomStorage,如果不指定，那么系统将会使用默认的FileSystemStorage</li>
-<li>CUSTOM_STORAGE_OPTIONS是一个你自定义的Storage初始化参数，这里我用字典来初始化，当然，你可以使用你觉得合理的任何数据类型。</li>
-<li>COMPRESS_STORAGE是我们指定的压缩文件的存放位置，与STATICFILES_STORAGE同理。</li>
-<li>STATIC_URL这个就是静态文件的路由前缀，例如你的文件系统中路径是’aa/bb.js’，你的cdn地址是’static.cdn.com’，这里就使用cdn地址作为你的STATIC_URL</li>
-</ul>
-<p>从文档中，我们可以知道，自定义的storage，必须实现_open,_save两个方法，我们参考源码可以知道，这两个方法分别被save和open两个方法调用，而这两个方法的作用分别是‘打开文件，读取内容’、‘将文件保存到指定的位置’，由此，我们需要自己定义的存储就在这里来实现。<br>由于这里我采用的是阿里云的oss，所以认证的过程，我们放在构造函数中完成，本着<code>D.R.Y</code>的原则，为了让多个自定义的storage可以使用，我们将它放在外部，只在构造函数里来使用它。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">authticate</span><span class="params">(option)</span>:</span></span><br><span class="line">    auth = oss2.Auth(</span><br><span class="line">        option.get(<span class="string">'AccessKeyId'</span>),</span><br><span class="line">        option.get(<span class="string">'AccessKeySecret'</span>)</span><br><span class="line">    )</span><br><span class="line">    service = oss2.Service(</span><br><span class="line">        auth,</span><br><span class="line">        option.get(<span class="string">'endpoint'</span>)</span><br><span class="line">    )</span><br><span class="line">    bucket = oss2.Bucket(</span><br><span class="line">        auth,</span><br><span class="line">        option.get(<span class="string">'oss_url'</span>),</span><br><span class="line">        option.get(<span class="string">'bucketname'</span>)</span><br><span class="line">    )</span><br><span class="line"><span class="keyword">return</span> (auth, service, bucket)</span><br></pre></td></tr></table></figure></p>
-<p>认证过后，就可以重写save过程了。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_save</span><span class="params">(self, name, content)</span>:</span></span><br><span class="line">    self.bucket.put_object(</span><br><span class="line">        name,</span><br><span class="line">        content</span><br><span class="line">    )</span><br><span class="line">    <span class="keyword">return</span> name</span><br></pre></td></tr></table></figure></p>
-<p>这里我们使用的是阿里云的oss，它的save就这么简单。文档可以直接google阿里云oss！这里就不贴出来了！<br>哈哈，这里是不是很简单！其实理解了它的各个方法，真的很简单…………<br>继续，由于open方法是打开本地文件系统的文件，我们就不重写它了。<br>其他的方法。文档中说到，delete()，exists()，listdir()，size()，url() 这几个方法都需要被覆写，不然就会抛出NotImplementedError异常。<br>这里我们通过源码可以解释一下，这些玩意在干嘛。</p>
-<ul>
-<li>delete方法：顾名思义，就是删除，此方法被调用时，从storage中删除文件</li>
-<li>exists方法：额，还是顾名思义，就是判断是否存在该文件，返回布尔值</li>
-<li>listdir方法：返回文件列表</li>
-<li>size方法：返回文件大小</li>
-<li>url方法：这个方法需要提一下，我在之前重写的时候，直接pass了，所以，我在打开xadmin时，就会一直报错，于是我就找了很久的原因，我在这个函数中下了断点，最后发现，这个函数是必须自己重新写的（如果你的文件是静态文件，可以通过url访问的话）。因为如果不重写它，返回的是一个None，于是该文件就没有url可以访问，在某些需要判断的地方，也会报错！</li>
-</ul>
-<h2 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h2><p>不同的云服务提供商的上传方式可能不一样，但是原理都是一样的，重写save方法，改为上传到云端，重写需要使用的方法。最后collectstatic,compress即可。</p>
-
+        <p>最近遇到了这样的一个问题，由于某些原因，需要把静态文件放到cdn上，之前使用的是django默认的storage（FileSystemStorage）。于是这里需要自定义storage。<br>第一次写storage，过程中遇到一些坑，记录下来。<br>
+        
+          <p class="article-more-link">
+            <a href="/2016/05/04/django自定义storage/#more">Read More</a>
+          </p>
+        
       
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://hopperclouds.github.io/2016/05/03/django自定义storage/" data-id="cins5esnt0000ytfr3pt6hnws" class="article-share-link" data-share="baidu" data-title="django自定义storage">分享到</a>
+        <a data-url="http://hopperclouds.github.io/2016/05/04/django自定义storage/" data-id="cins4brti0000e7fr9chg4lt5" class="article-share-link" data-share="baidu" data-title="django自定义storage">分享到</a>
       
 
       
-        <a href="http://hopperclouds.github.io/2016/05/03/django自定义storage/#disqus_thread" class="article-comment-link">评论</a>
+        <a href="http://hopperclouds.github.io/2016/05/04/django自定义storage/#disqus_thread" class="article-comment-link">评论</a>
       
 
       
@@ -168,115 +152,18 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <h1 id="公司情况"><a href="#公司情况" class="headerlink" title="公司情况"></a>公司情况</h1><p>现在主要做的产品是 <a href="http://www.pinbot.me/" target="_blank" rel="external">http://www.pinbot.me/</a> ,已经拿到A轮</p>
+        <h1 id="公司情况"><a href="#公司情况" class="headerlink" title="公司情况"></a>公司情况</h1><p>现在主要做的产品是 <a href="http://www.pinbot.me/">http://www.pinbot.me/</a> ,已经拿到A轮</p>
 <p>坐标：四川成都高新区府城大道天府新谷5号楼705成都浩泊云动科技有限公司</p>
-<h1 id="我们的研发团队喜欢什么"><a href="#我们的研发团队喜欢什么" class="headerlink" title="我们的研发团队喜欢什么"></a>我们的研发团队喜欢什么</h1><ol>
-<li>K.I.S.S</li>
-<li>敏捷开发，快速原型和必要的单元测试</li>
-<li>使用*nix</li>
-<li>有创造性思维，喜欢创造的人</li>
-<li>函数式编程和各种高并发的编程语言（Scheme、Clojure、Golang、Elixir）</li>
-</ol>
-<h1 id="为什么招实习生"><a href="#为什么招实习生" class="headerlink" title="为什么招实习生"></a>为什么招实习生</h1><p>成都Python的圈子本来就小，看来看去就那么些人，大牛实在难搞定，所以希望找到一些有兴趣往Python方向发展的人，一起成长。</p>
-<h1 id="在这里你能做什么"><a href="#在这里你能做什么" class="headerlink" title="在这里你能做什么"></a>在这里你能做什么</h1><ol>
-<li>了解到Python Web开发常用的工具和流程规范</li>
-<li>做一些真正有人使用的产品</li>
-<li>一起建设团队，给团队带来更高效的流程和工具</li>
-<li>做自己想做的产品，如果你有好的创意都可以跟我们产品经理沟通，将创意实现到产品中</li>
-</ol>
-<h1 id="我们能提供什么"><a href="#我们能提供什么" class="headerlink" title="我们能提供什么"></a>我们能提供什么</h1><ol>
-<li>Mac和双显是我们日常的开发工具</li>
-<li>每周免费的零食</li>
-<li>技术分享</li>
-<li>每月一次的Hack Day</li>
-<li>妹子都是女神级别的，养眼提高工作效率</li>
-</ol>
-<h1 id="工作描述"><a href="#工作描述" class="headerlink" title="工作描述"></a>工作描述</h1><ol>
-<li>负责<a href="http://www.pinbot.me/" target="_blank" rel="external">http://www.pinbot.me/</a> 网站新功能的开发和日常维护</li>
-<li>负责内部CRM管理系统的开发维护</li>
-</ol>
-<h1 id="技能要求"><a href="#技能要求" class="headerlink" title="技能要求"></a>技能要求</h1><pre><code># coding: utf-8
-
-&quot;&quot;&quot;
-对以下技术熟悉或者有强烈兴趣
-&quot;&quot;&quot;
-
-# 基本技能
-BASIC_SKILL = [
-    &apos;*nix&apos;,
-    &apos;Vim or Emacs&apos;,
-    &apos;Git&apos;,
-    &apos;Unix哲学&apos;,
-    &apos;基础算法和数据结构&apos;,
-    &apos;计算机组成原理&apos;,
-    &apos;网路协议&apos;,
-]
-
-# 后端技能
-BACKEND_SKILL = [
-    &apos;Python&apos;,
-    &apos;Django&apos;,
-    &apos;Python常用库&apos;,
-    &apos;了解Http 协议&apos;,
-    &apos;NodeJS&apos;,
-]
-
-# 前端技能
-FRONTEND_SKILL = [
-    &apos;HTML&apos;,
-    &apos;CSS&apos;,
-    &apos;JS&apos;,
-    &apos;AngularJS&apos;,
-    &apos;React&apos;,
-    &apos;JQuery&apos;,
-]
-
-# 运维
-MAINTAIN_SKILL = [
-    &apos;bash&apos;,
-    &apos;Docker&apos;,
-    &apos;Fabric&apos;,
-    &apos;Ansible&apos;,
-    &apos;SaltStack&apos;,
-]
-
-# 数据库
-DATABASE = [
-    &apos;MySQL&apos;,
-    &apos;Mongo&apos;,
-]
-
-ALL_SKILL = set(i.lower() for i in (BASIC_SKILL + BACKEND_SKILL + FRONTEND_SKILL + MAINTAIN_SKILL + DATABASE))
-
-def i_want_you(your_skill):
-    &quot;&quot;&quot;
-    符合以上任意关键词就可以了
-    后续可以让我们的算法工程师来做一个测试程序
-
-    &gt;&gt;&gt; i_want_you(&apos;Python HTML Docker MySQL&apos;)
-    I want you
-
-    &gt;&gt;&gt; i_want_you(&apos;java&apos;)
-    hehe
-    &quot;&quot;&quot;
-    your_skill = [i.lower() for i in your_skill.split()]
-    print &apos;I want you&apos; if set(your_skill).intersection(ALL_SKILL) else &apos;hehe&apos;
-
-
-if __name__ == &apos;__main__&apos;:
-    your_skill = raw_input(&apos;Input your skill: &apos;)
-    i_want_you(your_skill)
-</code></pre><h1 id="补充"><a href="#补充" class="headerlink" title="补充"></a>补充</h1><ol>
-<li>有github或者bitbucket等开源社区账号优先</li>
-<li>有自己博客的优先</li>
-</ol>
-<h1 id="联系我"><a href="#联系我" class="headerlink" title="联系我"></a>联系我</h1><p>简历请投至：chenchao@hopperclouds.com</p>
-
+        
+          <p class="article-more-link">
+            <a href="/2015/09/29/聘宝招聘Python实习生/#more">Read More</a>
+          </p>
+        
       
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://hopperclouds.github.io/2015/09/29/聘宝招聘Python实习生/" data-id="cins5esnz0001ytfrno11i8b9" class="article-share-link" data-share="baidu" data-title="聘宝招聘Python实习生">分享到</a>
+        <a data-url="http://hopperclouds.github.io/2015/09/29/聘宝招聘Python实习生/" data-id="cins4brtw0004e7frm1ash1nx" class="article-share-link" data-share="baidu" data-title="聘宝招聘Python实习生">分享到</a>
       
 
       
@@ -319,46 +206,17 @@ if __name__ == &apos;__main__&apos;:
     
     <div class="article-entry" itemprop="articleBody">
       
-        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p><a href="http://www.pinbot.me" target="_blank" rel="external">聘宝(www.pinbot.me)</a> 立志做新一代的智能猎头，让企业招聘变得更简单，我们崇尚敏捷，崇尚开源，崇尚K.I.S.S</p>
-<h1 id="Web研发团队必备技能"><a href="#Web研发团队必备技能" class="headerlink" title="Web研发团队必备技能"></a>Web研发团队必备技能</h1><h2 id="后端技术"><a href="#后端技术" class="headerlink" title="后端技术"></a>后端技术</h2><pre><code>Python (我们主要使用的后端语言)
-Django (我们正在使用的框架)
-Python常用库(celery, requests, json, bs4...)
-HTTP协议 (这个必须会)
-Unit Test (知道什么地方要有测试)
-</code></pre><h2 id="前端技术"><a href="#前端技术" class="headerlink" title="前端技术"></a>前端技术</h2><pre><code>HTML
-Javascript (Node是一个趋势，所以必须会)
-CSS
-Angular.js
-React.js
-</code></pre><h2 id="数据库"><a href="#数据库" class="headerlink" title="数据库"></a>数据库</h2><pre><code>Mysql
-Mongo
-Redis
-明确知道不同类型数据库的应用场景，了解数据的设计范式和调优
-</code></pre><h2 id="消息队列"><a href="#消息队列" class="headerlink" title="消息队列"></a>消息队列</h2><pre><code>RabbitMQ
-</code></pre><h2 id="运维相关"><a href="#运维相关" class="headerlink" title="运维相关"></a>运维相关</h2><pre><code>Docker (很多东西正在尝试用docker去完成，确实很方便)
-Ansible (服务器配置管理)
-</code></pre><h2 id="开发环境"><a href="#开发环境" class="headerlink" title="开发环境"></a>开发环境</h2><pre><code>*nix (必须会，不喜欢windows)
-VIM (运维要用，必须会)
-Emacs (看个人爱好)
-Git及Git开发流程 (必须会)
-</code></pre><h2 id="文档"><a href="#文档" class="headerlink" title="文档"></a>文档</h2><pre><code>markdown
-rst
-</code></pre><h2 id="职业素养"><a href="#职业素养" class="headerlink" title="职业素养"></a>职业素养</h2><pre><code>1. 独立思考，好学
-2. 沟通能力强
-3. 了解Python哲学
-4. 读过程序员修炼之道和代码整洁之道等必读书籍
-5. 对程序设计有自己的追求
-6. 了解软件工程的思想
-</code></pre><h2 id="推荐技术"><a href="#推荐技术" class="headerlink" title="推荐技术"></a>推荐技术</h2><pre><code>Golang、Clojure(并发是以后的趋势)
-函数式编程语言（可能也是以后的趋势）
-elixir (聘宝会考虑用它做东西)
-</code></pre><h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>这个是我们团队的后端必备技能，欢迎大家在评论中补充</p>
-
+        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p><a href="http://www.pinbot.me">聘宝(www.pinbot.me)</a> 立志做新一代的智能猎头，让企业招聘变得更简单，我们崇尚敏捷，崇尚开源，崇尚K.I.S.S</p>
+        
+          <p class="article-more-link">
+            <a href="/2015/09/24/聘宝研发团队必备技能/#more">Read More</a>
+          </p>
+        
       
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://hopperclouds.github.io/2015/09/24/聘宝研发团队必备技能/" data-id="cins5eso90005ytfrh2pbuc38" class="article-share-link" data-share="baidu" data-title="聘宝研发团队必备技能">分享到</a>
+        <a data-url="http://hopperclouds.github.io/2015/09/24/聘宝研发团队必备技能/" data-id="cins4brtx0005e7fraie07650" class="article-share-link" data-share="baidu" data-title="聘宝研发团队必备技能">分享到</a>
       
 
       
@@ -402,58 +260,19 @@ elixir (聘宝会考虑用它做东西)
     <div class="article-entry" itemprop="articleBody">
       
         <h2 id="安装和部署请参考下面或自行google"><a href="#安装和部署请参考下面或自行google" class="headerlink" title="安装和部署请参考下面或自行google"></a>安装和部署请参考下面或自行google</h2><ol>
-<li><a href="https://hexo.io/" target="_blank" rel="external">官网</a></li>
-<li><a href="http://wsgzao.github.io/post/hexo-guide/" target="_blank" rel="external">http://wsgzao.github.io/post/hexo-guide/</a></li>
+<li><a href="https://hexo.io/">官网</a></li>
+<li><a href="http://wsgzao.github.io/post/hexo-guide/">http://wsgzao.github.io/post/hexo-guide/</a></li>
 </ol>
-<h2 id="基本使用"><a href="#基本使用" class="headerlink" title="基本使用"></a>基本使用</h2><h3 id="准备"><a href="#准备" class="headerlink" title="准备"></a>准备</h3><pre><code># 安装node 和 cnpm
-brew install node
-npm install cnpm -g
-
-# 将项目clone 下来
-git clone git@github.com:HopperClouds/hopperclouds.github.io.git
-
-# 安装hexo 依赖的node库
-cnpm install
-
-# 遇到问题
-# { [Error: Cannot find module &apos;./build/Release/DTraceProviderBindings&apos; ] code: &apos;MODULE_NOT_FOUND&apos;  }
-# { [Error: Cannot find module &apos;./build/default/DTraceProviderBindings&apos; ] code: &apos;MODULE_NOT_FOUND&apos;  }
-# { [Error: Cannot find module &apos;./build/Debug/DTraceProviderBindings&apos; ] code: &apos;MODULE_NOT_FOUND&apos;  }
-# 使用
-cnpm install --no-optional
-</code></pre><h3 id="开始写文章"><a href="#开始写文章" class="headerlink" title="开始写文章"></a>开始写文章</h3><pre><code>hexo new &quot;your title&quot;
-
-# 在source/_posts/your\ title.md 文件
-# 在里面使用markdown编辑博客
-
-# 生成文件格式
-title: 使用Hexo作为博客
-date: 2015-09-24 15:29:25
-# 类别
-categories:
-  - 其他
-# 标签
-tags:
-  - 其他
-  - 开始
----
-markdown格式正文内容
-</code></pre><h3 id="生成文章"><a href="#生成文章" class="headerlink" title="生成文章"></a>生成文章</h3><pre><code>hexo generate
-
-# 使用--watch 参数检测文件更新
-hexo generate --watch
-</code></pre><h3 id="预览"><a href="#预览" class="headerlink" title="预览"></a>预览</h3><pre><code>hexo server
-</code></pre><h3 id="发布"><a href="#发布" class="headerlink" title="发布"></a>发布</h3><pre><code>hexo deploy
-</code></pre><h3 id="将markdown源码push到source分支"><a href="#将markdown源码push到source分支" class="headerlink" title="将markdown源码push到source分支"></a>将markdown源码push到source分支</h3><pre><code>git push origin master:source
-</code></pre><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>静态博客才是写博客的正确姿势</p>
-<p>初次使用觉得不像<a href="http://octopress.org/" target="_blank" rel="external">octopress</a> 那样完善，至于为什么不用octopress, 是因为我们是使用Python和JS的团队，Node对我们来说更友好一些。</p>
-<p>对于使用Emacs的用户还没有org mode支持，可以hack一下了。</p>
-
+        
+          <p class="article-more-link">
+            <a href="/2015/09/24/使用Hexo作为博客/#more">Read More</a>
+          </p>
+        
       
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://hopperclouds.github.io/2015/09/24/使用Hexo作为博客/" data-id="cins5eso70004ytfrlevki1ti" class="article-share-link" data-share="baidu" data-title="使用Hexo作为博客">分享到</a>
+        <a data-url="http://hopperclouds.github.io/2015/09/24/使用Hexo作为博客/" data-id="cins4brto0001e7frn68jsvps" class="article-share-link" data-share="baidu" data-title="使用Hexo作为博客">分享到</a>
       
 
       
@@ -518,7 +337,7 @@ hexo generate --watch
       <ul>
         
           <li>
-            <a href="/2016/05/03/django自定义storage/">django自定义storage</a>
+            <a href="/2016/05/04/django自定义storage/">django自定义storage</a>
           </li>
         
           <li>
