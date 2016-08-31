@@ -22,7 +22,7 @@ tags: [搜索引擎, apache lucene]
 
 ## 总体架构
 
-&ensp;&ensp;&ensp;&ensp;介绍Lucene架构之前必须理解一些基本的概念,才能更好的理解Lucene的
+介绍Lucene架构之前必须理解一些基本的概念,才能更好的理解Lucene的
 架构,这些概念是:
 ___
 - **Document**:它是在索引和搜索过程中数据的主要表现形式，或者称“载体”，
