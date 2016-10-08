@@ -76,6 +76,7 @@ npm install hexo-browsersync --save
       </script>
     <!-- 多说公共JS代码 end -->
 ```
+覆盖themes/modified/内容到themes/landscape-plus
 
 
 ## 发布流程
