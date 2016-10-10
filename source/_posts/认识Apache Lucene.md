@@ -9,6 +9,8 @@ tags: [搜索引擎, apache lucene]
 来实现索引的查询功能的。如果读者没有用过Lucene，下面的几个部分将
 为您介绍Lucene的基本概念。
 
+<!--more-->
+
 ## 熟悉Lucene
 
 &emsp;&emsp;&emsp;&emsp;读者也许会产生疑问，为什么ElasticSearch 的创造者最终采用Lucene

@@ -13,6 +13,8 @@ tags:
 ## 什么是`ORM`？
 简单的讲就是对`SQL`查询语句的封装，让我们可以用`OOP`的方式操作数据库，优雅的生成安全、可维护的`SQL`代码。直观上，是一种`Model`和`SQL`的映射关系。
 
+<!--more-->
+
 ```Javascript
 const User = sequelize.define('user', {
     id: {

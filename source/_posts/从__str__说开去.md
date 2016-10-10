@@ -18,7 +18,7 @@ author: Kxrr
 [`object.__str__`](https://docs.python.org/2/reference/datamodel.html#object.__str__)是python中一个常见的特殊方法, 会被内置函数被 `str` 和 `print` 调用。
 常常与它一起出现的还有[`object.__repr__`](https://docs.python.org/2/reference/datamodel.html#object.__repr__), 类似地, 它会被内置函数 `repr` 调用。
 
-
+<!--more-->
 
 ### 区别
 
@@ -91,14 +91,14 @@ student = Student(name='罗伊', grade=11)
 print student
 ```
 
-报错了, `UnicodeEncodeError` 。 你或许精通python2的中文编码问题, 但也许并没有注意到这个问题。 
+报错了, `UnicodeEncodeError` 。 你或许精通python2的中文编码问题, 但也许并没有注意到这个问题。
 在使用django时遇到过 `[Bad Unicode data]` 这个东西, 问题是一样的, django在项目中也使用了 `unicode_literals` 。
 
 ### 问题在哪
 问题在于 `object.__str__` 返回的必须为string object, 而使用 `unicode_literals` 之后返回的为unicode object, python2解释器会尝试用默认的编码(ascii)对其进行encode, 所以报错。
 
 ### 解决问题
-`unicode_literals` 在python2中是个利器, 不能不用。 
+`unicode_literals` 在python2中是个利器, 不能不用。
 接下来我们用两种方法来解决上面这个问题。
 
 #### patch
@@ -139,7 +139,7 @@ class Best(object):
         return unicode(self).encode('utf-8')
 
     def __unicode__(self):
-        s = 'Put your data here.' 
+        s = 'Put your data here.'
         assert isinstance(s, unicode)
         return s
 ```

@@ -13,6 +13,8 @@ react.js称为颠覆式前端UI开发框架。目前基于html的前端开发变
 ReactJS官网地址：http://facebook.github.io/react/
 Github地址：https://github.com/facebook/react
 
+<!--more-->
+
 ### react.js的特点
 #### 1、就是轻，数据渲染响应非常快。
 复杂或频繁的DOM操作通常是性能瓶颈产生的原因。React为此引入了虚拟DOM（Virtual DOM）的机制：在浏览器端用Javascript实现了一套DOM API。基于React进行开发时所有的DOM构造都是通过虚拟DOM进行，每当数据变化时，React都会重新构建整个DOM树，然后React将当前整个DOM树和上一次的DOM树进行对比，得到DOM结构的区别，然后仅仅将需要变化的部分进行实际的浏览器DOM更新。尽管每一次都需要构造完整的虚拟DOM树，但是因为虚拟DOM是内存数据，性能是极高的，而对实际DOM进行操作的仅仅是Diff部分，因而能达到提高性能的目的。

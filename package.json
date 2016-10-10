@@ -5,6 +5,9 @@
   "hexo": {
     "version": "3.2.2"
   },
+  "scripts": {
+    "deploy": "cd themes && git submodule update --init --recursive && cd ../ && cp -f ./themes/modified/source/css/_variables.styl ./themes/landscape-plus/source/css/_variables.styl && cp -f ./themes/modified/layout/_partial/after-footer.ejs ./themes/landscape-plus/layout/_partial/after-footer.ejs && cp -f ./themes/modified/layout/_partial/article.ejs ./themes/landscape-plus/layout/_partial/article.ejs && cp -f ./themes/modified/layout/_partial/head.ejs ./themes/landscape-plus/layout/_partial/head.ejs && hexo generate && hexo deploy"
+  },
   "dependencies": {
     "hexo": "^3.2.2",
     "hexo-admin": "^2.1.0",
